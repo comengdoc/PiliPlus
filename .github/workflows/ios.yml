@@ -4,12 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       branch:
+        description: 'Which branch to build'
         required: false
         default: 'main'
 
 jobs:
-  build-macos-app:
+  build-ios:
+    name: Release iOS App
     runs-on: macos-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,18 +20,19 @@ jobs:
           ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
 
-      - name: Setup Flutter
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version-file: pubspec.yaml
 
-      - name: 更新版本号
+      - name: Update version in pubspec.yaml
         run: |
           version_name=$(yq e '.version' pubspec.yaml | cut -d "+" -f 1)
-          sed -i '' "s/version: .*/version: $version_name+$(git rev-list --count HEAD)/" pubspec.yaml
+          build_number=$(git rev-list --count HEAD)
+          sed -i '' "s/^version: .*/version: $version_name+$build_number/" pubspec.yaml
 
-      - name: Build iOS app (no codesign)
+      - name: Build iOS (no codesign)
         run: |
           chmod +x lib/scripts/build.sh
           lib/scripts/build.sh
@@ -36,13 +40,16 @@ jobs:
 
       - name: Package unsigned IPA
         run: |
+          # remove any old Payload
           rm -rf Payload
+          # create a real Payload directory
           mkdir Payload
+          # copy the real app bundle
           cp -R build/ios/iphoneos/Runner.app Payload/
-          # macOS 专用，保留资源分支
+          # use ditto to create a proper .ipa (preserves metadata)
           ditto -c -k --sequesterRsrc --keepParent Payload ios-release-no-sign.ipa
 
-      - name: Upload ios-release
+      - name: Upload iOS release artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-release
