@@ -2,29 +2,37 @@ name: Build for iOS
 
 on:
   workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Which branch to build'
-        required: false
-        default: 'main'
 
 jobs:
   build-ios:
-    name: Release iOS App
+    name: Build & Package iOS (unsigned)
     runs-on: macos-latest
+
+    # 国内镜像
+    env:
+      PUB_HOSTED_URL: https://pub.flutter-io.cn
+      FLUTTER_STORAGE_BASE_URL: https://storage.flutter-io.cn
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.branch }}
-          fetch-depth: 0
 
-      - name: Set up Flutter
+      - name: Cache pub dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.pub-cache
+          key: ${{ runner.os }}-pub-${{ hashFiles('**/pubspec.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pub-
+
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version-file: pubspec.yaml
+
+      - name: Pre-get flutter packages
+        run: flutter pub get
 
       - name: Update version in pubspec.yaml
         run: |
@@ -32,24 +40,22 @@ jobs:
           build_number=$(git rev-list --count HEAD)
           sed -i '' "s/^version: .*/version: $version_name+$build_number/" pubspec.yaml
 
-      - name: Build iOS (no codesign)
+      - name: Build & Package iOS (no codesign)
         run: |
+          # 1. 编译出无签名 App
           chmod +x lib/scripts/build.sh
           lib/scripts/build.sh
           flutter build ios --release --no-codesign
 
-      - name: Package unsigned IPA
-        run: |
-          # remove any old Payload
+          # 2. 打包成 Payload 目录
           rm -rf Payload
-          # create a real Payload directory
           mkdir Payload
-          # copy the real app bundle
           cp -R build/ios/iphoneos/Runner.app Payload/
-          # use ditto to create a proper .ipa (preserves metadata)
+
+          # 3. 用 ditto 生成 .ipa（保留元数据）
           ditto -c -k --sequesterRsrc --keepParent Payload ios-release-no-sign.ipa
 
-      - name: Upload iOS release artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-release
