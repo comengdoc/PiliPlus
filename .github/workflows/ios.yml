@@ -9,7 +9,6 @@ on:
 
 jobs:
   build-macos-app:
-    name: Release IOS
     runs-on: macos-latest
     steps:
       - name: Checkout code
@@ -18,7 +17,7 @@ jobs:
           ref: ${{ github.event.inputs.branch }}
           fetch-depth: 0
 
-      - name: Setup flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
@@ -29,15 +28,21 @@ jobs:
           version_name=$(yq e '.version' pubspec.yaml | cut -d "+" -f 1)
           sed -i '' "s/version: .*/version: $version_name+$(git rev-list --count HEAD)/" pubspec.yaml
 
-      - name: Build iOS
+      - name: Build iOS app (no codesign)
         run: |
           chmod +x lib/scripts/build.sh
           lib/scripts/build.sh
-          flutter build ios --release --no-codesign 
-          ln -sf ./build/ios/iphoneos Payload
-          zip -r9 ios-release-no-sign.ipa Payload/runner.app
+          flutter build ios --release --no-codesign
 
-      - name: Upload ios release
+      - name: Package unsigned IPA
+        run: |
+          rm -rf Payload
+          mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          # macOS 专用，保留资源分支
+          ditto -c -k --sequesterRsrc --keepParent Payload ios-release-no-sign.ipa
+
+      - name: Upload ios-release
         uses: actions/upload-artifact@v4
         with:
           name: ios-release
