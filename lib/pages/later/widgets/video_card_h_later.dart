@@ -94,11 +94,25 @@ class VideoCardHLater extends StatelessWidget {
                           width: maxWidth,
                           height: maxHeight,
                         ),
-                        PBadge(
-                          text: videoItem.pgcLabel,
-                          top: 6.0,
-                          right: 6.0,
-                        ),
+                        if (videoItem.isCharging == true)
+                          const PBadge(
+                            text: '充电专属',
+                            top: 6.0,
+                            right: 6.0,
+                            type: PBadgeType.error,
+                          )
+                        else if (videoItem.rights?.isCooperation == 1)
+                          const PBadge(
+                            text: '合作',
+                            top: 6.0,
+                            right: 6.0,
+                          )
+                        else if (videoItem.pgcLabel != null)
+                          PBadge(
+                            text: videoItem.pgcLabel,
+                            top: 6.0,
+                            right: 6.0,
+                          ),
                         if (progress != null && progress != 0) ...[
                           PBadge(
                             text: progress == -1

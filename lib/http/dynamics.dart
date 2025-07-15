@@ -14,6 +14,7 @@ import 'package:PiliPlus/models_new/article/article_view/data.dart';
 import 'package:PiliPlus/models_new/dynamic/dyn_mention/data.dart';
 import 'package:PiliPlus/models_new/dynamic/dyn_mention/group.dart';
 import 'package:PiliPlus/models_new/dynamic/dyn_reserve/data.dart';
+import 'package:PiliPlus/models_new/dynamic/dyn_reserve_info/data.dart';
 import 'package:PiliPlus/models_new/dynamic/dyn_topic_feed/topic_card_list.dart';
 import 'package:PiliPlus/models_new/dynamic/dyn_topic_top/top_details.dart';
 import 'package:PiliPlus/models_new/dynamic/dyn_topic_top/topic_item.dart';
@@ -131,6 +132,7 @@ class DynamicsHttp {
     List<Map<String, dynamic>>? extraContent,
     Pair<int, String>? topic,
     String? title,
+    Map? attachCard,
   }) async {
     var res = await Request().post(
       Api.createDynamic,
@@ -171,7 +173,7 @@ class DynamicsHttp {
                       ? 2
                       : 1,
           if (pics != null) 'pics': pics,
-          "attach_card": null,
+          "attach_card": attachCard,
           "upload_id":
               "${rid != null ? 0 : mid}_${DateTime.now().millisecondsSinceEpoch ~/ 1000}_${Utils.random.nextInt(9000) + 1000}",
           "meta": {
@@ -259,6 +261,25 @@ class DynamicsHttp {
   }) async {
     var res = await Request().post(
       Api.setTopDyn,
+      queryParameters: {
+        'csrf': Accounts.main.csrf,
+      },
+      data: {
+        'dyn_str': dynamicId,
+      },
+    );
+    if (res.data['code'] == 0) {
+      return {'status': true};
+    } else {
+      return {'status': false, 'msg': res.data['message']};
+    }
+  }
+
+  static Future rmTop({
+    required dynamic dynamicId,
+  }) async {
+    var res = await Request().post(
+      Api.rmTopDyn,
       queryParameters: {
         'csrf': Accounts.main.csrf,
       },
@@ -506,6 +527,100 @@ class DynamicsHttp {
       return Success(
         DynMentionData.fromJson(res.data['data']).groups,
       );
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<int?>> createVote(VoteInfo voteInfo) async {
+    final res = await Request().post(
+      Api.createVote,
+      queryParameters: {'csrf': Accounts.main.csrf},
+      data: {'vote_info': voteInfo.toJson()},
+    );
+    if (res.data['code'] == 0) {
+      return Success(res.data['data']?['vote_id']);
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<int?>> updateVote(VoteInfo voteInfo) async {
+    final res = await Request().post(
+      Api.updateVote,
+      queryParameters: {'csrf': Accounts.main.csrf},
+      data: {'vote_info': voteInfo.toJson()},
+    );
+    if (res.data['code'] == 0) {
+      return Success(res.data['data']?['vote_id']);
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<int?>> createReserve({
+    int subType = 0,
+    required String title,
+    required int livePlanStartTime,
+  }) async {
+    final res = await Request().post(
+      Api.createReserve,
+      data: {
+        'type': 2,
+        'sub_type': subType,
+        'from': 1,
+        'title': title,
+        'live_plan_start_time': livePlanStartTime,
+        'csrf': Accounts.main.csrf,
+      },
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+    if (res.data['code'] == 0) {
+      return Success(res.data['data']?['sid']);
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<int?>> updateReserve({
+    int subType = 0,
+    required String title,
+    required int livePlanStartTime,
+    required int sid,
+  }) async {
+    final res = await Request().post(
+      Api.updateReserve,
+      data: {
+        'type': 2,
+        'sub_type': subType,
+        'from': 1,
+        'title': title,
+        'live_plan_start_time': livePlanStartTime,
+        'id': sid,
+        'csrf': Accounts.main.csrf,
+      },
+      options: Options(contentType: Headers.formUrlEncodedContentType),
+    );
+    if (res.data['code'] == 0) {
+      return Success(res.data['data']?['sid']);
+    } else {
+      return Error(res.data['message']);
+    }
+  }
+
+  static Future<LoadingState<ReserveInfoData>> reserveInfo({
+    required dynamic sid,
+  }) async {
+    final res = await Request().get(
+      Api.reserveInfo,
+      queryParameters: {
+        'from': 1,
+        'id': sid,
+        'web_location': 333.1365,
+      },
+    );
+    if (res.data['code'] == 0) {
+      return Success(ReserveInfoData.fromJson(res.data['data']));
     } else {
       return Error(res.data['message']);
     }

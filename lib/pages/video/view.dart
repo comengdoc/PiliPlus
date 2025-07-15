@@ -498,7 +498,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       child: Scaffold(
         resizeToAvoidBottomInset: false,
         key: videoDetailController.scaffoldKey,
-        appBar: removeSafeArea
+        appBar: (removeSafeArea || isFullScreen)
             ? null
             : PreferredSize(
                 preferredSize: const Size.fromHeight(0),
@@ -1009,29 +1009,27 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
                   child: videoPlayer(videoWidth, videoHeight),
                 ),
                 Expanded(
-                  child: Expanded(
-                    child: Scaffold(
-                      key: videoDetailController.childKey,
-                      resizeToAvoidBottomInset: false,
-                      backgroundColor: Colors.transparent,
-                      body: Column(
-                        children: [
-                          buildTabbar(
-                            showIntro: false,
-                            showReply: videoDetailController.showReply,
+                  child: Scaffold(
+                    key: videoDetailController.childKey,
+                    resizeToAvoidBottomInset: false,
+                    backgroundColor: Colors.transparent,
+                    body: Column(
+                      children: [
+                        buildTabbar(
+                          showIntro: false,
+                          showReply: videoDetailController.showReply,
+                        ),
+                        Expanded(
+                          child: videoTabBarView(
+                            controller: videoDetailController.tabCtr,
+                            children: [
+                              if (videoDetailController.showReply)
+                                videoReplyPanel(),
+                              if (_shouldShowSeasonPanel) seasonPanel,
+                            ],
                           ),
-                          Expanded(
-                            child: videoTabBarView(
-                              controller: videoDetailController.tabCtr,
-                              children: [
-                                if (videoDetailController.showReply)
-                                  videoReplyPanel(),
-                                if (_shouldShowSeasonPanel) seasonPanel,
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -1124,7 +1122,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
           Scaffold(
             resizeToAvoidBottomInset: false,
             key: videoDetailController.scaffoldKey,
-            appBar: removeSafeArea
+            appBar: (removeSafeArea || isFullScreen)
                 ? null
                 : AppBar(
                     backgroundColor: Colors.black,
@@ -1133,7 +1131,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
             body: SafeArea(
               left: !removeSafeArea && !isFullScreen,
               right: !removeSafeArea && !isFullScreen,
-              top: !removeSafeArea,
+              top: !removeSafeArea && !isFullScreen,
               bottom: false,
               child: childWhenDisabledLandscapeInner,
             ),
@@ -1144,7 +1142,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   Widget get childWhenDisabledAlmostSquare => Scaffold(
         resizeToAvoidBottomInset: false,
         key: videoDetailController.scaffoldKey,
-        appBar: removeSafeArea
+        appBar: (removeSafeArea || isFullScreen)
             ? null
             : AppBar(
                 backgroundColor: Colors.black,
@@ -1153,7 +1151,7 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
         body: SafeArea(
           left: !removeSafeArea && !isFullScreen,
           right: !removeSafeArea && !isFullScreen,
-          top: !removeSafeArea,
+          top: !removeSafeArea && !isFullScreen,
           bottom: false,
           child: childWhenDisabledAlmostSquareInner,
         ),
@@ -1428,8 +1426,9 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
       videoDetailController.tabCtr = TabController(
         vsync: this,
         length: tabs.length,
-        initialIndex:
-            videoDetailController.tabCtr.index.clamp(0, tabs.length - 1),
+        initialIndex: tabs.isEmpty
+            ? 0
+            : videoDetailController.tabCtr.index.clamp(0, tabs.length - 1),
       );
     }
 

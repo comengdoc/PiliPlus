@@ -5,7 +5,7 @@ import 'package:PiliPlus/http/danmaku.dart';
 import 'package:PiliPlus/main.dart';
 import 'package:PiliPlus/models/common/publish_panel_type.dart';
 import 'package:PiliPlus/models/user/info.dart';
-import 'package:PiliPlus/pages/common/common_publish_page.dart';
+import 'package:PiliPlus/pages/common/publish/common_text_pub_page.dart';
 import 'package:PiliPlus/pages/setting/slide_color_picker.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:canvas_danmaku/models/danmaku_content_item.dart';
@@ -14,7 +14,7 @@ import 'package:flutter/services.dart' show LengthLimitingTextInputFormatter;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
 
-class SendDanmakuPanel extends CommonPublishPage {
+class SendDanmakuPanel extends CommonTextPubPage {
   // video
   final dynamic cid;
   final dynamic bvid;
@@ -44,7 +44,7 @@ class SendDanmakuPanel extends CommonPublishPage {
   State<SendDanmakuPanel> createState() => _SendDanmakuPanelState();
 }
 
-class _SendDanmakuPanelState extends CommonPublishPageState<SendDanmakuPanel> {
+class _SendDanmakuPanelState extends CommonTextPubPageState<SendDanmakuPanel> {
   late final RxInt _mode;
   late final RxInt _fontsize;
   late final Rx<Color> _color;
@@ -134,30 +134,6 @@ class _SendDanmakuPanelState extends CommonPublishPageState<SendDanmakuPanel> {
         ),
       );
 
-  Widget get child => SafeArea(
-        bottom: false,
-        child: Align(
-          alignment: Alignment.bottomCenter,
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 450),
-            decoration: BoxDecoration(
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-              color: themeData.colorScheme.surface,
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildInputView(),
-                buildPanelContainer(Colors.transparent),
-              ],
-            ),
-          ),
-        ),
-      );
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -170,6 +146,29 @@ class _SendDanmakuPanelState extends CommonPublishPageState<SendDanmakuPanel> {
 
   @override
   Widget build(BuildContext context) {
+    Widget child = SafeArea(
+      bottom: false,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 450),
+          decoration: BoxDecoration(
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(12),
+              topRight: Radius.circular(12),
+            ),
+            color: themeData.colorScheme.surface,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _buildInputView(),
+              buildPanelContainer(themeData, Colors.transparent),
+            ],
+          ),
+        ),
+      ),
+    );
     return widget.darkVideoPage ? Theme(data: themeData, child: child) : child;
   }
 
@@ -426,9 +425,9 @@ class _SendDanmakuPanelState extends CommonPublishPageState<SendDanmakuPanel> {
     );
   }
 
-  void _showColorPicker() {
+  Future<void> _showColorPicker() async {
     controller.keepChatPanel();
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) => AlertDialog(
         clipBehavior: Clip.hardEdge,
@@ -445,11 +444,11 @@ class _SendDanmakuPanelState extends CommonPublishPageState<SendDanmakuPanel> {
         ),
       ),
     );
+    controller.restoreChatPanel();
   }
 
   @override
-  Future<void> onCustomPublish(
-      {required String message, List? pictures}) async {
+  Future<void> onCustomPublish({List? pictures}) async {
     SmartDialog.showLoading(msg: '发送中...');
     bool isColorful = _color.value == Colors.transparent;
     final res = await DanmakuHttp.shootDanmaku(
@@ -464,6 +463,7 @@ class _SendDanmakuPanelState extends CommonPublishPageState<SendDanmakuPanel> {
     );
     SmartDialog.dismiss();
     if (res['status']) {
+      hasPub = true;
       Get.back();
       SmartDialog.showToast('发送成功');
       widget.callback(

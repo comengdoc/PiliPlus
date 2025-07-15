@@ -11,7 +11,8 @@ import 'package:PiliPlus/models_new/fav/fav_pgc/rights.dart';
 import 'package:PiliPlus/models_new/fav/fav_pgc/section.dart';
 import 'package:PiliPlus/models_new/fav/fav_pgc/series.dart';
 import 'package:PiliPlus/models_new/fav/fav_pgc/stat.dart';
-import 'package:PiliPlus/pages/common/multi_select_controller.dart';
+import 'package:PiliPlus/pages/common/multi_select_controller.dart'
+    show MultiSelectData;
 
 class FavPgcItemModel with MultiSelectData {
   int? seasonId;
@@ -201,7 +202,7 @@ class FavPgcItemModel with MultiSelectData {
                 json['config_attrs'] as Map<String, dynamic>),
         followStatus: json['follow_status'] as int?,
         isNew: json['is_new'] as int?,
-        progress: json['progress'] as String?,
+        progress: json['progress'] == '' ? null : json['progress'],
         bothFollow: json['both_follow'] as bool?,
         subtitle25: json['subtitle_25'] as String?,
       );

@@ -15,7 +15,7 @@ abstract class Account {
   late String csrf;
   final Map<String, String> headers = const {};
 
-  // bool activited = false;
+  bool activited = false;
 
   Future<void> delete();
   Future<void> onChange();
@@ -39,6 +39,9 @@ class LoginAccount implements Account {
   @override
   @HiveField(3)
   late final Set<AccountType> type;
+
+  @override
+  bool activited = false;
 
   @override
   late final int mid = int.parse(_midStr);
@@ -73,10 +76,12 @@ class LoginAccount implements Account {
 
   LoginAccount(this.cookieJar, this.accessKey, this.refresh,
       [Set<AccountType>? type])
-      : type = type ?? {};
+      : type = type ?? {} {
+    cookieJar.setBuvid3();
+  }
 
   LoginAccount.fromJson(Map json) {
-    cookieJar = BiliCookieJar.fromJson(json['cookies']);
+    cookieJar = BiliCookieJar.fromJson(json['cookies'])..setBuvid3();
     accessKey = json['accessKey'];
     refresh = json['refresh'];
     type = (json['type'] as Iterable?)
@@ -110,6 +115,9 @@ class AnonymousAccount implements Account {
   String csrf = '';
   @override
   final Map<String, String> headers = const {};
+
+  @override
+  bool activited = false;
 
   @override
   Future<void> delete() async {

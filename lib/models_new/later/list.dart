@@ -1,11 +1,11 @@
-import 'package:PiliPlus/pages/common/multi_select_controller.dart';
-
 import 'package:PiliPlus/models_new/later/bangumi.dart';
 import 'package:PiliPlus/models_new/later/dimension.dart';
 import 'package:PiliPlus/models_new/later/owner.dart';
 import 'package:PiliPlus/models_new/later/page.dart';
 import 'package:PiliPlus/models_new/later/rights.dart';
 import 'package:PiliPlus/models_new/later/stat.dart';
+import 'package:PiliPlus/pages/common/multi_select_controller.dart'
+    show MultiSelectData;
 
 class LaterItemModel with MultiSelectData {
   int? aid;
@@ -52,6 +52,7 @@ class LaterItemModel with MultiSelectData {
   int? missionId;
   String? firstFrame;
   int? seasonId;
+  bool? isCharging;
 
   LaterItemModel({
     this.aid,
@@ -98,6 +99,7 @@ class LaterItemModel with MultiSelectData {
     this.missionId,
     this.firstFrame,
     this.seasonId,
+    this.isCharging,
   });
 
   factory LaterItemModel.fromJson(Map<String, dynamic> json) => LaterItemModel(
@@ -155,10 +157,11 @@ class LaterItemModel with MultiSelectData {
         enableVt: json['enable_vt'] as int?,
         viewText1: json['view_text_1'] as String?,
         isPgc: json['is_pgc'] as bool?,
-        pgcLabel: json['pgc_label'] as String?,
+        pgcLabel: json['pgc_label'] == '' ? null : json['pgc_label'],
         isPugv: json['is_pugv'] as bool?,
         missionId: json['mission_id'] as int?,
         firstFrame: json['first_frame'] as String?,
         seasonId: json['season_id'] as int?,
+        isCharging: json['charging_pay']?['level'] != null,
       );
 }

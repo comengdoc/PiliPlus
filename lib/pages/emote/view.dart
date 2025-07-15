@@ -1,4 +1,5 @@
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
+import 'package:PiliPlus/common/widgets/custom_tooltip.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/loading_widget/loading_widget.dart';
 import 'package:PiliPlus/common/widgets/scroll_physics.dart';
@@ -11,7 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class EmotePanel extends StatefulWidget {
-  final ValueChanged<Emote> onChoose;
+  final Function(Emote emote, double? width, double? height) onChoose;
+
   const EmotePanel({super.key, required this.onChoose});
 
   @override
@@ -36,6 +38,9 @@ class _EmotePanelState extends State<EmotePanel>
 
   Widget _buildBody(
       ThemeData theme, LoadingState<List<Package>?> loadingState) {
+    late final color = Get.currentRoute.startsWith('/whisperDetail')
+        ? theme.colorScheme.surface
+        : theme.colorScheme.onInverseSurface;
     return switch (loadingState) {
       Loading() => loadingWidget,
       Success(:var response) => response?.isNotEmpty == true
@@ -46,47 +51,89 @@ class _EmotePanelState extends State<EmotePanel>
                     controller: _emotePanelController.tabController,
                     children: response!.map(
                       (e) {
-                        int size = e.emote!.first.meta!.size!;
-                        int type = e.type!;
+                        double size = e.emote!.first.meta!.size == 1 ? 40 : 60;
+                        bool isTextEmote = e.type == 4;
                         return GridView.builder(
                           padding: const EdgeInsets.only(
                               left: 12, right: 12, bottom: 12),
                           gridDelegate:
                               SliverGridDelegateWithMaxCrossAxisExtent(
-                            maxCrossAxisExtent:
-                                type == 4 ? 100 : (size == 1 ? 40 : 60),
+                            maxCrossAxisExtent: isTextEmote ? 100 : size,
                             crossAxisSpacing: 8,
                             mainAxisSpacing: 8,
-                            mainAxisExtent: size == 1 ? 40 : 60,
+                            mainAxisExtent: size,
                           ),
                           itemCount: e.emote!.length,
                           itemBuilder: (context, index) {
                             final item = e.emote![index];
+                            Widget child = Padding(
+                              padding: const EdgeInsets.all(6),
+                              child: isTextEmote
+                                  ? Center(
+                                      child: Text(
+                                        item.text!,
+                                        overflow: TextOverflow.clip,
+                                        maxLines: 1,
+                                      ),
+                                    )
+                                  : NetworkImgLayer(
+                                      src: item.url!,
+                                      width: size,
+                                      height: size,
+                                      type: ImageType.emote,
+                                      boxFit: BoxFit.contain,
+                                    ),
+                            );
+                            if (!isTextEmote) {
+                              child = CustomTooltip(
+                                indicator: () => CustomPaint(
+                                  size: const Size(14, 8),
+                                  painter: TrianglePainter(color),
+                                ),
+                                overlayWidget: () => Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    borderRadius: const BorderRadius.all(
+                                        Radius.circular(8)),
+                                  ),
+                                  child: Column(
+                                    spacing: 4,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      NetworkImgLayer(
+                                        src: item.url!,
+                                        width: 65,
+                                        height: 65,
+                                        type: ImageType.emote,
+                                        boxFit: BoxFit.contain,
+                                      ),
+                                      Text(
+                                        item.meta?.alias ??
+                                            item.text!.substring(
+                                                1, item.text!.length - 1),
+                                        style: const TextStyle(fontSize: 12),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                child: child,
+                              );
+                            }
                             return Material(
                               type: MaterialType.transparency,
                               child: InkWell(
                                 borderRadius:
-                                    const BorderRadius.all(Radius.circular(8)),
-                                onTap: () => widget.onChoose(item),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(6),
-                                  child: type == 4
-                                      ? Center(
-                                          child: Text(
-                                            item.text!,
-                                            overflow: TextOverflow.clip,
-                                            maxLines: 1,
-                                          ),
-                                        )
-                                      : NetworkImgLayer(
-                                          src: item.url!,
-                                          width: size * 38,
-                                          height: size * 38,
-                                          semanticsLabel: item.text!,
-                                          type: ImageType.emote,
-                                          boxFit: BoxFit.contain,
-                                        ),
-                                ),
+                                    const BorderRadius.all(Radius.circular(6)),
+                                onTap: () => widget.onChoose(
+                                    item,
+                                    isTextEmote
+                                        ? null
+                                        : e.emote!.first.meta!.size == 1
+                                            ? 24
+                                            : 42,
+                                    null),
+                                child: child,
                               ),
                             );
                           },

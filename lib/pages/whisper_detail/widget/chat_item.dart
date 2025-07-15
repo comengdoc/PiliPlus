@@ -19,6 +19,7 @@ import 'package:PiliPlus/utils/image_util.dart';
 import 'package:PiliPlus/utils/page_utils.dart';
 import 'package:PiliPlus/utils/utils.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:get/get.dart';
@@ -40,6 +41,13 @@ class ChatItem extends StatelessWidget {
   final VoidCallback? onLongPress;
   final bool isOwner;
 
+  // 消息来源
+  // enum MsgSource {
+  //     EN_MSG_SOURCE_AUTOREPLY_BY_FOLLOWED    = 8;  //
+  //     EN_MSG_SOURCE_AUTOREPLY_BY_RECEIVE_MSG = 9;  //
+  //     EN_MSG_SOURCE_AUTOREPLY_BY_KEYWORDS    = 10; //
+  //     EN_MSG_SOURCE_AUTOREPLY_BY_VOYAGE      = 11; //
+  // };
   @override
   Widget build(BuildContext context) {
     bool isPic = item.msgType == MsgType.EN_MSG_TYPE_PIC.value; // 图片
@@ -125,6 +133,22 @@ class ChatItem extends StatelessWidget {
                                       color: theme.colorScheme.onErrorContainer,
                                     ),
                                   ),
+                                if (item.msgSource >= 8 &&
+                                    item.msgSource <= 11) ...[
+                                  Divider(
+                                    height: 10,
+                                    thickness: 1,
+                                    color: theme.colorScheme.outline
+                                        .withValues(alpha: 0.2),
+                                  ),
+                                  Text(
+                                    '此条消息为自动回复',
+                                    style:
+                                        theme.textTheme.labelMedium!.copyWith(
+                                      color: theme.colorScheme.outline,
+                                    ),
+                                  ),
+                                ]
                               ],
                             ),
                           ),
@@ -150,7 +174,7 @@ class ChatItem extends StatelessWidget {
         case MsgType.EN_MSG_TYPE_TIP_MESSAGE:
           return msgTypeTipMessage_18(theme, content);
         case MsgType.EN_MSG_TYPE_TEXT:
-          return msgTypeText_1(content: content, textColor: textColor);
+          return msgTypeText_1(theme, content: content, textColor: textColor);
         case MsgType.EN_MSG_TYPE_PIC:
           return msgTypePic_2(context, content);
         case MsgType.EN_MSG_TYPE_SHARE_V2:
@@ -588,29 +612,31 @@ class ChatItem extends StatelessWidget {
     );
   }
 
-  Widget msgTypeText_1({
+  Widget msgTypeText_1(
+    ThemeData theme, {
     required dynamic content,
     required Color textColor,
   }) {
-    late final style = TextStyle(
-      color: textColor,
-      letterSpacing: 0.6,
-      height: 1.5,
-    );
+    final style = TextStyle(color: textColor, letterSpacing: 0.6, height: 1.5);
+    final List<InlineSpan> children = [];
+    late final Map<String, Map> emojiMap = {};
+    final List<String> patterns = [Constants.urlRegex.pattern];
     if (eInfos != null) {
-      final List<InlineSpan> children = [];
-      Map<String, Map> emojiMap = {};
       for (var e in eInfos!) {
-        emojiMap[e.text] = {
+        emojiMap[e.text] ??= {
           'url': e.hasGifUrl() ? e.gifUrl : e.url,
-          'size': e.size * 24.0,
+          'size': e.size * 22.0,
         };
       }
-      content['content'].splitMapJoin(
-        RegExp(r"\[[^\[\]]+\]"),
-        onMatch: (Match match) {
-          final emojiKey = match[0]!;
-          final emoji = emojiMap[emojiKey];
+      patterns.addAll(emojiMap.keys.map(RegExp.escape));
+    }
+    final regex = RegExp(patterns.join('|'));
+    content['content'].splitMapJoin(
+      regex,
+      onMatch: (Match match) {
+        final matchStr = match[0]!;
+        if (matchStr.startsWith('[')) {
+          final emoji = emojiMap[matchStr];
           if (emoji != null) {
             final size = emoji['size'];
             children.add(
@@ -624,18 +650,26 @@ class ChatItem extends StatelessWidget {
               ),
             );
           } else {
-            children.add(TextSpan(text: emojiKey, style: style));
+            children.add(TextSpan(text: matchStr, style: style));
           }
-          return '';
-        },
-        onNonMatch: (String text) {
-          children.add(TextSpan(text: text, style: style));
-          return '';
-        },
-      );
-      return SelectableText.rich(TextSpan(children: children));
-    }
-    return SelectableText(content['content'], style: style);
+        } else {
+          children.add(
+            TextSpan(
+              text: matchStr,
+              style: style.copyWith(color: theme.colorScheme.primary),
+              recognizer: TapGestureRecognizer()
+                ..onTap = () => PiliScheme.routePushFromUrl(matchStr),
+            ),
+          );
+        }
+        return '';
+      },
+      onNonMatch: (String text) {
+        children.add(TextSpan(text: text, style: style));
+        return '';
+      },
+    );
+    return SelectableText.rich(TextSpan(children: children));
   }
 
   Widget msgTypeNotifyMsg_10(ThemeData theme, content) {

@@ -775,6 +775,8 @@ class Api {
 
   static const String setTopDyn = '/x/dynamic/feed/space/set_top';
 
+  static const String rmTopDyn = '/x/dynamic/feed/space/rm_top';
+
   static const String searchRecommend =
       '${HttpString.appBaseUrl}/x/v2/search/recommend';
 
@@ -917,4 +919,20 @@ class Api {
   static const String spaceAudio = '/audio/music-service/web/song/upper';
 
   static const String dynMention = '/x/polymer/web-dynamic/v1/mention/search';
+
+  static const String createVote = '/x/vote/create';
+
+  static const String updateVote = '/x/vote/update';
+
+  static const String createReserve = '/x/new-reserve/up/reserve/create';
+
+  static const String updateReserve = '/x/new-reserve/up/reserve/update';
+
+  static const String reserveInfo = '/x/new-reserve/up/reserve/info';
+
+  static const String loginLog = '/x/member/web/login/log';
+
+  static const String expLog = '/x/member/web/exp/log';
+
+  static const String moralLog = '/x/member/web/moral/log';
 }

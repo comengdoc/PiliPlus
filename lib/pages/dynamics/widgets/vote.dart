@@ -91,28 +91,30 @@ class _VotePanelState extends State<VotePanel> {
         if (_enabled)
           Padding(
             padding: const EdgeInsets.only(top: 16),
-            child: OutlinedButton(
-              onPressed: groupValue.isNotEmpty
-                  ? () async {
-                      final res = await widget.callback(
-                        groupValue,
-                        anonymity,
-                      );
-                      if (res.isSuccess) {
-                        if (mounted) {
-                          setState(() {
-                            _enabled = false;
-                            _showPercentage = true;
-                            _voteInfo = res.data;
-                            _percentage = _cnt2Percentage(_voteInfo.options);
-                          });
+            child: Obx(
+              () => OutlinedButton(
+                onPressed: groupValue.isNotEmpty
+                    ? () async {
+                        final res = await widget.callback(
+                          groupValue,
+                          anonymity,
+                        );
+                        if (res.isSuccess) {
+                          if (mounted) {
+                            setState(() {
+                              _enabled = false;
+                              _showPercentage = true;
+                              _voteInfo = res.data;
+                              _percentage = _cnt2Percentage(_voteInfo.options);
+                            });
+                          }
+                        } else {
+                          res.toast();
                         }
-                      } else {
-                        res.toast();
                       }
-                    }
-                  : null,
-              child: const Center(child: Text('投票')),
+                    : null,
+                child: const Center(child: Text('投票')),
+              ),
             ),
           ),
       ],
@@ -144,14 +146,14 @@ class _VotePanelState extends State<VotePanel> {
       child: Builder(
         builder: (context) {
           final opt = _voteInfo.options[index];
-          final selected = groupValue.contains(opt.optidx);
+          final selected = groupValue.contains(opt.optIdx);
           return PercentageChip(
-            label: opt.optdesc!,
+            label: opt.optDesc!,
             percentage: _showPercentage ? _percentage[index] : null,
             selected: selected,
             onSelected: !_enabled || (groupValue.length >= _maxCnt && !selected)
                 ? null
-                : (value) => _onSelected(context, value, opt.optidx!),
+                : (value) => _onSelected(context, value, opt.optIdx!),
           );
         },
       ),
