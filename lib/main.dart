@@ -12,8 +12,8 @@ import 'package:PiliPlus/services/loggeer.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
 import 'package:PiliPlus/utils/cache_manage.dart';
-import 'package:PiliPlus/utils/data.dart';
 import 'package:PiliPlus/utils/date_util.dart';
+import 'package:PiliPlus/utils/request_utils.dart';
 import 'package:PiliPlus/utils/storage.dart';
 import 'package:PiliPlus/utils/storage_key.dart';
 import 'package:PiliPlus/utils/storage_pref.dart';
@@ -71,7 +71,8 @@ void main() async {
 
   if (Pref.enableLog) {
     // 异常捕获 logo记录
-    String buildConfig = '''\n
+    String buildConfig =
+        '''\n
 Build Time: ${DateUtil.format(BuildConfig.buildTime, format: DateUtil.longFormatDs)}
 Commit Hash: ${BuildConfig.commitHash}''';
     final Catcher2Options debugConfig = Catcher2Options(
@@ -82,7 +83,7 @@ Commit Hash: ${BuildConfig.commitHash}''';
           enableDeviceParameters: false,
           enableApplicationParameters: false,
           enableCustomParameters: true,
-        )
+        ),
       ],
       customParameters: {
         'BuildConfig': buildConfig,
@@ -95,7 +96,7 @@ Commit Hash: ${BuildConfig.commitHash}''';
         FileHandler(await getLogsPath()),
         ConsoleHandler(
           enableCustomParameters: true,
-        )
+        ),
       ],
       customParameters: {
         'BuildConfig': buildConfig,
@@ -115,13 +116,15 @@ Commit Hash: ${BuildConfig.commitHash}''';
 
   // 小白条、导航栏沉浸
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    systemNavigationBarColor: Colors.transparent,
-    systemNavigationBarDividerColor: Colors.transparent,
-    statusBarColor: Colors.transparent,
-    systemNavigationBarContrastEnforced: false,
-  ));
-  Data.init();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarDividerColor: Colors.transparent,
+      statusBarColor: Colors.transparent,
+      systemNavigationBarContrastEnforced: false,
+    ),
+  );
+  RequestUtils.syncHistoryStatus();
   PiliScheme.init();
 }
 
@@ -138,17 +141,18 @@ class MyApp extends StatelessWidget {
 
     // 强制设置高帧率
     if (Platform.isAndroid) {
-      late List modes;
+      late List<DisplayMode> modes;
       FlutterDisplayMode.supported.then((value) {
         modes = value;
         var storageDisplay = GStorage.setting.get(SettingBoxKey.displayMode);
-        DisplayMode f = DisplayMode.auto;
+        DisplayMode? displayMode;
         if (storageDisplay != null) {
-          f = modes.firstWhere((e) => e.toString() == storageDisplay,
-              orElse: () => f);
+          displayMode = modes.firstWhereOrNull(
+            (e) => e.toString() == storageDisplay,
+          );
         }
-        DisplayMode preferred = modes.toList().firstWhere((el) => el == f);
-        FlutterDisplayMode.setPreferredMode(preferred);
+        displayMode ??= DisplayMode.auto;
+        FlutterDisplayMode.setPreferredMode(displayMode);
       });
     }
 
@@ -211,7 +215,8 @@ class MyApp extends StatelessWidget {
             builder: (context, child) {
               return MediaQuery(
                 data: MediaQuery.of(context).copyWith(
-                    textScaler: TextScaler.linear(Pref.defaultTextScale)),
+                  textScaler: TextScaler.linear(Pref.defaultTextScale),
+                ),
                 child: child!,
               );
             },

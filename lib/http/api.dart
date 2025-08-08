@@ -22,6 +22,8 @@ class Api {
   // https://api.bilibili.com/pgc/player/web/v2/playurl?cid=104236640&bvid=BV13t411n7ex
   static const String pgcUrl = '/pgc/player/web/v2/playurl';
 
+  static const String pugvUrl = '/pugv/player/web/playurl';
+
   // 字幕
   // aid, cid
   static const String playInfo = '/x/player/wbi/v2';
@@ -102,11 +104,9 @@ class Api {
   // csrf	str	CSRF Token（位于cookie）	Cookie方式必要
   // https://api.bilibili.com/medialist/gateway/coll/resource/deal
   // https://api.bilibili.com/x/v3/fav/resource/deal
-  static const String favVideo = '/x/v3/fav/resource/deal';
+  static const String favVideo = '/x/v3/fav/resource/batch-deal';
 
-  // static const String favBangumi = '/x/v3/fav/resource/batch-deal';
-
-  static const String delFav = '/x/v3/fav/resource/batch-del';
+  static const String unfavAll = '/x/v3/fav/resource/unfav-all';
 
   static const String copyFav = '/x/v3/fav/resource/copy';
 
@@ -280,6 +280,8 @@ class Api {
 
   // 番剧/剧集明细
   static const String pgcInfo = '/pgc/view/web/season';
+
+  static const String pugvInfo = '/pugv/view/web/season';
 
   // https://api.bilibili.com/pgc/season/episode/web/info?ep_id=12345678
   static const String episodeInfo = '/pgc/season/episode/web/info';
@@ -848,6 +850,12 @@ class Api {
 
   static const String dynReserve = '/x/dynamic/feed/reserve/click';
 
+  static const String favPugv = '/pugv/app/web/favorite/page';
+
+  static const String addFavPugv = '/pugv/app/web/favorite/add';
+
+  static const String delFavPugv = '/pugv/app/web/favorite/del';
+
   static const String favTopicList = '/x/topic/web/fav/list';
 
   static const String addFavTopic = '/x/topic/fav/sub/add';
@@ -917,6 +925,8 @@ class Api {
   static const String spaceComic = '${HttpString.appBaseUrl}/x/v2/space/comic';
 
   static const String spaceAudio = '/audio/music-service/web/song/upper';
+
+  static const String spaceCheese = '/pugv/app/web/season/page';
 
   static const String dynMention = '/x/polymer/web-dynamic/v1/mention/search';
 

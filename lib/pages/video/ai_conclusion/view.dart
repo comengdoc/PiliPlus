@@ -1,5 +1,5 @@
 import 'package:PiliPlus/models_new/video/video_ai_conclusion/model_result.dart';
-import 'package:PiliPlus/pages/common/common_collapse_slide_page.dart';
+import 'package:PiliPlus/pages/common/slide/common_collapse_slide_page.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/utils/duration_util.dart';
 import 'package:flutter/gestures.dart';
@@ -19,6 +19,14 @@ class AiConclusionPanel extends CommonCollapseSlidePage {
 }
 
 class _AiDetailState extends CommonCollapseSlidePageState<AiConclusionPanel> {
+  final _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget buildPage(ThemeData theme) {
     return Material(
@@ -53,7 +61,7 @@ class _AiDetailState extends CommonCollapseSlidePageState<AiConclusionPanel> {
   @override
   Widget buildList(ThemeData theme) {
     return CustomScrollView(
-      controller: ScrollController(),
+      controller: _controller,
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         if (widget.item.summary?.isNotEmpty == true) ...[
@@ -116,7 +124,8 @@ class _AiDetailState extends CommonCollapseSlidePageState<AiConclusionPanel> {
                                 children: [
                                   TextSpan(
                                     text: DurationUtil.formatDuration(
-                                        item.timestamp),
+                                      item.timestamp,
+                                    ),
                                     style: TextStyle(
                                       color: theme.colorScheme.primary,
                                     ),
@@ -124,10 +133,10 @@ class _AiDetailState extends CommonCollapseSlidePageState<AiConclusionPanel> {
                                       ..onTap = () {
                                         try {
                                           Get.find<VideoDetailController>(
-                                                  tag: Get.arguments['heroTag'])
-                                              .plPlayerController
-                                              .seekTo(Duration(
-                                                  seconds: item.timestamp!));
+                                            tag: Get.arguments['heroTag'],
+                                          ).plPlayerController.seekTo(
+                                            Duration(seconds: item.timestamp!),
+                                          );
                                         } catch (_) {}
                                       },
                                   ),

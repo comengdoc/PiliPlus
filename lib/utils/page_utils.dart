@@ -1,22 +1,24 @@
 import 'dart:math';
 
+import 'package:PiliPlus/common/widgets/interactiveviewer_gallery/hero_dialog_route.dart';
 import 'package:PiliPlus/common/widgets/interactiveviewer_gallery/interactiveviewer_gallery.dart';
 import 'package:PiliPlus/grpc/im.dart';
 import 'package:PiliPlus/http/dynamics.dart';
 import 'package:PiliPlus/http/search.dart';
 import 'package:PiliPlus/models/common/image_preview_type.dart';
-import 'package:PiliPlus/models/common/search_type.dart';
+import 'package:PiliPlus/models/common/video/video_type.dart';
 import 'package:PiliPlus/models/dynamics/result.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/episode.dart';
 import 'package:PiliPlus/models_new/pgc/pgc_info_model/result.dart';
-import 'package:PiliPlus/models_new/pgc/pgc_info_model/section.dart';
 import 'package:PiliPlus/pages/common/common_intro_controller.dart';
 import 'package:PiliPlus/pages/contact/view.dart';
 import 'package:PiliPlus/pages/fav_panel/view.dart';
 import 'package:PiliPlus/pages/share/view.dart';
 import 'package:PiliPlus/pages/video/introduction/ugc/widgets/menu_row.dart';
+import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/services/shutdown_timer_service.dart';
 import 'package:PiliPlus/utils/app_scheme.dart';
+import 'package:PiliPlus/utils/context_ext.dart';
 import 'package:PiliPlus/utils/extension.dart';
 import 'package:PiliPlus/utils/feed_back.dart';
 import 'package:PiliPlus/utils/global_data.dart';
@@ -29,12 +31,34 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show FilteringTextInputFormatter;
 import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
-import 'package:get/get.dart';
+import 'package:get/get.dart' hide ContextExtensionss;
 import 'package:url_launcher/url_launcher.dart';
 
 class PageUtils {
-  static Future<void> pmShare(BuildContext context,
-      {required Map content}) async {
+  static Future<void> imageView({
+    int initialPage = 0,
+    required List<SourceModel> imgList,
+    ValueChanged<int>? onDismissed,
+    int? quality,
+  }) {
+    bool isMemberPage = Get.currentRoute.startsWith('/member?');
+    return Navigator.of(Get.context!).push(
+      HeroDialogRoute(
+        builder: (context) => InteractiveviewerGallery(
+          sources: imgList,
+          initIndex: initialPage,
+          onDismissed: onDismissed,
+          setStatusBar: !isMemberPage,
+          quality: quality ?? GlobalData().imgQuality,
+        ),
+      ),
+    );
+  }
+
+  static Future<void> pmShare(
+    BuildContext context, {
+    required Map content,
+  }) async {
     // if (kDebugMode) debugPrint(content.toString());
 
     int? selectedIndex;
@@ -42,13 +66,17 @@ class PageUtils {
 
     final shareListRes = await ImGrpc.shareList(size: 3);
     if (shareListRes.isSuccess && shareListRes.data.sessionList.isNotEmpty) {
-      userList.addAll(shareListRes.data.sessionList
-          .map<UserModel>((item) => UserModel(
+      userList.addAll(
+        shareListRes.data.sessionList
+            .map<UserModel>(
+              (item) => UserModel(
                 mid: item.talkerId.toInt(),
                 name: item.talkerUname,
                 avatar: item.talkerIcon,
-              ))
-          .toList());
+              ),
+            )
+            .toList(),
+      );
     } else if (context.mounted) {
       UserModel? userModel = await Navigator.of(context).push(
         GetPageRoute(page: () => const ContactPage()),
@@ -74,8 +102,11 @@ class PageUtils {
     }
   }
 
-  static void scheduleExit(BuildContext context, isFullScreen,
-      [bool isLive = false]) {
+  static void scheduleExit(
+    BuildContext context,
+    isFullScreen, [
+    bool isLive = false,
+  ]) {
     if (!context.mounted) {
       return;
     }
@@ -153,7 +184,8 @@ class PageUtils {
                       ...[
                         ...scheduleTimeChoices,
                         if (!scheduleTimeChoices.contains(
-                            shutdownTimerService.scheduledExitInMinutes))
+                          shutdownTimerService.scheduledExitInMinutes,
+                        ))
                           shutdownTimerService.scheduledExitInMinutes,
                       ]..sort(),
                       -1,
@@ -165,11 +197,12 @@ class PageUtils {
                           choice == -1
                               ? '自定义'
                               : choice == 0
-                                  ? "禁用"
-                                  : "$choice分钟后",
+                              ? "禁用"
+                              : "$choice分钟后",
                           style: titleStyle,
                         ),
-                        trailing: shutdownTimerService.scheduledExitInMinutes ==
+                        trailing:
+                            shutdownTimerService.scheduledExitInMinutes ==
                                 choice
                             ? Icon(
                                 size: 20,
@@ -195,14 +228,16 @@ class PageUtils {
                               scale: 0.8,
                               child: Switch(
                                 thumbIcon:
-                                    WidgetStateProperty.resolveWith<Icon?>(
-                                        (Set<WidgetState> states) {
-                                  if (states.isNotEmpty &&
-                                      states.first == WidgetState.selected) {
-                                    return const Icon(Icons.done);
-                                  }
-                                  return null;
-                                }),
+                                    WidgetStateProperty.resolveWith<Icon?>((
+                                      Set<WidgetState> states,
+                                    ) {
+                                      if (states.isNotEmpty &&
+                                          states.first ==
+                                              WidgetState.selected) {
+                                        return const Icon(Icons.done);
+                                      }
+                                      return null;
+                                    }),
                                 value: shutdownTimerService
                                     .waitForPlayingCompleted,
                                 onChanged: (value) {
@@ -335,8 +370,8 @@ class PageUtils {
           aspectRatio: aspectRatio.fitsInAndroidRequirements
               ? aspectRatio
               : height > width
-                  ? const Rational.vertical()
-                  : const Rational.landscape(),
+              ? const Rational.vertical()
+              : const Rational.landscape(),
         ),
       );
     } else {
@@ -344,8 +379,11 @@ class PageUtils {
     }
   }
 
-  static Future<void> pushDynDetail(DynamicItemModel item, floor,
-      {action = 'all'}) async {
+  static Future<void> pushDynDetail(
+    DynamicItemModel item,
+    floor, {
+    action = 'all',
+  }) async {
     feedBack();
 
     void push() {
@@ -378,13 +416,16 @@ class PageUtils {
     switch (item.type) {
       case 'DYNAMIC_TYPE_AV':
         if (item.modules.moduleDynamic?.major?.archive?.type == 2) {
-          if (item.modules.moduleDynamic!.major!.archive!.jumpUrl!
-              .startsWith('//')) {
+          if (item.modules.moduleDynamic!.major!.archive!.jumpUrl!.startsWith(
+            '//',
+          )) {
             item.modules.moduleDynamic!.major!.archive!.jumpUrl =
                 'https:${item.modules.moduleDynamic!.major!.archive!.jumpUrl!}';
           }
           String? redirectUrl = await UrlUtils.parseRedirectUrl(
-              item.modules.moduleDynamic!.major!.archive!.jumpUrl!, false);
+            item.modules.moduleDynamic!.major!.archive!.jumpUrl!,
+            false,
+          );
           if (redirectUrl != null) {
             viewPgcFromUri(redirectUrl);
             return;
@@ -397,11 +438,9 @@ class PageUtils {
           int? cid = await SearchHttp.ab2c(bvid: bvid);
           if (cid != null) {
             toVideoPage(
-              'bvid=$bvid&cid=$cid',
-              arguments: {
-                'pic': cover,
-                'heroTag': Utils.makeHeroTag(bvid),
-              },
+              bvid: bvid,
+              cid: cid,
+              cover: cover,
               preventDuplicates: false,
             );
           }
@@ -428,7 +467,7 @@ class PageUtils {
       case 'DYNAMIC_TYPE_LIVE_RCMD':
         DynamicLiveModel liveRcmd =
             item.modules.moduleDynamic!.major!.liveRcmd!;
-        toDupNamed('/liveRoom?roomid=${liveRcmd.roomId}');
+        toLiveRoom(liveRcmd.roomId);
         break;
 
       /// 合集查看
@@ -441,11 +480,10 @@ class PageUtils {
         int? cid = await SearchHttp.ab2c(bvid: bvid);
         if (cid != null) {
           toVideoPage(
-            'bvid=$bvid&cid=$cid',
-            arguments: {
-              'pic': cover,
-              'heroTag': Utils.makeHeroTag(bvid),
-            },
+            aid: aid,
+            bvid: bvid,
+            cid: cid,
+            cover: cover,
             preventDuplicates: false,
           );
         }
@@ -496,12 +534,14 @@ class PageUtils {
 
   static void onHorizontalPreview(
     GlobalKey<ScaffoldState> key,
-    transitionAnimationController,
-    ctr,
+    TickerProvider vsync,
     List<String> imgList,
-    index,
-    onClose,
+    int index,
   ) {
+    final ctr = AnimationController(
+      vsync: vsync,
+      duration: const Duration(milliseconds: 200),
+    )..forward();
     key.currentState?.showBottomSheet(
       (context) {
         return FadeTransition(
@@ -510,7 +550,19 @@ class PageUtils {
             sources: imgList.map((url) => SourceModel(url: url)).toList(),
             initIndex: index,
             setStatusBar: false,
-            onClose: onClose,
+            onClose: (value) async {
+              if (!value) {
+                try {
+                  await ctr.reverse();
+                } catch (_) {}
+              }
+              try {
+                ctr.dispose();
+              } catch (_) {}
+              if (!value) {
+                Get.back();
+              }
+            },
             quality: GlobalData().imgQuality,
           ),
         );
@@ -518,7 +570,6 @@ class PageUtils {
       enableDrag: false,
       elevation: 0,
       backgroundColor: Colors.transparent,
-      transitionAnimationController: transitionAnimationController,
       sheetAnimationStyle: const AnimationStyle(duration: Duration.zero),
     );
   }
@@ -598,7 +649,7 @@ class PageUtils {
       barrierLabel: '',
       barrierDismissible: true,
       pageBuilder: (buildContext, animation, secondaryAnimation) {
-        return MediaQuery.orientationOf(Get.context!) == Orientation.portrait
+        return Get.context!.isPortrait
             ? SafeArea(
                 child: Column(
                   children: [
@@ -620,12 +671,13 @@ class PageUtils {
       },
       transitionDuration: const Duration(milliseconds: 350),
       transitionBuilder: (context, animation, secondaryAnimation, child) {
-        Offset begin =
-            MediaQuery.orientationOf(Get.context!) == Orientation.portrait
-                ? const Offset(0.0, 1.0)
-                : const Offset(1.0, 0.0);
-        var tween = Tween(begin: begin, end: Offset.zero)
-            .chain(CurveTween(curve: Curves.easeInOut));
+        Offset begin = Get.context!.isPortrait
+            ? const Offset(0.0, 1.0)
+            : const Offset(1.0, 0.0);
+        var tween = Tween(
+          begin: begin,
+          end: Offset.zero,
+        ).chain(CurveTween(curve: Curves.easeInOut));
         return SlideTransition(
           position: animation.drive(tween),
           child: child,
@@ -635,123 +687,242 @@ class PageUtils {
     );
   }
 
-  static void toVideoPage(
-    String page, {
-    dynamic arguments,
-    int? id,
-    bool preventDuplicates = true,
-    Map<String, String>? parameters,
+  static void toLiveRoom(
+    int? roomId, {
     bool off = false,
   }) {
+    if (roomId == null) {
+      return;
+    }
+    if (PlPlayerController.instanceExists()) {
+      SmartDialog.showToast('unsupported');
+      return;
+    }
+    if (off) {
+      Get.offNamed('/liveRoom', arguments: roomId);
+    } else {
+      Get.toNamed('/liveRoom', arguments: roomId);
+    }
+  }
+
+  static void toVideoPage({
+    VideoType videoType = VideoType.ugc,
+    int? aid,
+    String? bvid,
+    required int cid,
+    int? seasonId,
+    int? epId,
+    int? pgcType,
+    String? cover,
+    String? title,
+    int? progress,
+    Map? extraArguments,
+    int? id,
+    bool preventDuplicates = true,
+    bool off = false,
+  }) {
+    if (PlPlayerController.instance?.isLive == true) {
+      SmartDialog.showToast('Living');
+      return;
+    }
+    final arguments = {
+      'aid': aid ?? IdUtils.bv2av(bvid!),
+      'bvid': bvid ?? IdUtils.av2bv(aid!),
+      'cid': cid,
+      'seasonId': ?seasonId,
+      'epId': ?epId,
+      'pgcType': ?pgcType,
+      'cover': ?cover,
+      'title': ?title,
+      'progress': ?progress,
+      'videoType': videoType,
+      'heroTag': Utils.makeHeroTag(cid),
+      ...?extraArguments,
+    };
     if (off) {
       Get.offNamed(
-        '/videoV?$page',
+        '/videoV',
         arguments: arguments,
         id: id,
-        preventDuplicates: preventDuplicates,
-        parameters: parameters,
+        preventDuplicates: false,
       );
     } else {
       Get.toNamed(
-        '/videoV?$page',
+        '/videoV',
         arguments: arguments,
         id: id,
-        preventDuplicates: preventDuplicates,
-        parameters: parameters,
+        preventDuplicates: false,
       );
     }
   }
 
   static final _pgcRegex = RegExp(r'(ep|ss)(\d+)');
-  static bool viewPgcFromUri(String uri, {String? progress}) {
+  static bool viewPgcFromUri(
+    String uri, {
+    bool isPgc = true,
+    String? progress,
+    int? aid,
+  }) {
     RegExpMatch? match = _pgcRegex.firstMatch(uri);
     if (match != null) {
       bool isSeason = match.group(1) == 'ss';
       String id = match.group(2)!;
-      viewPgc(
-        seasonId: isSeason ? id : null,
-        epId: isSeason ? null : id,
-        progress: progress,
-      );
+      if (isPgc) {
+        viewPgc(
+          seasonId: isSeason ? id : null,
+          epId: isSeason ? null : id,
+          progress: progress,
+        );
+      } else {
+        viewPugv(
+          seasonId: isSeason ? id : null,
+          epId: isSeason ? null : id,
+          aid: aid,
+        );
+      }
       return true;
     }
     return false;
   }
 
-  static Future<void> viewPgc(
-      {dynamic seasonId, dynamic epId, String? progress}) async {
+  static EpisodeItem findEpisode(
+    List<EpisodeItem> episodes, {
+    dynamic epId,
+    bool isPgc = true,
+  }) {
+    // epId episode -> progress episode -> first episode
+    EpisodeItem? episode;
+    if (epId != null) {
+      epId = epId.toString();
+      episode = episodes.firstWhereOrNull(
+        (item) => (isPgc ? item.epId : item.id).toString() == epId,
+      );
+    }
+    return episode ?? episodes.first;
+  }
+
+  static Future<void> viewPgc({
+    dynamic seasonId,
+    dynamic epId,
+    String? progress,
+  }) async {
     try {
       SmartDialog.showLoading(msg: '资源获取中');
       var result = await SearchHttp.pgcInfo(seasonId: seasonId, epId: epId);
       SmartDialog.dismiss();
-      if (result['status']) {
-        PgcInfoModel data = result['data'];
+      if (result.isSuccess) {
+        PgcInfoModel data = result.data;
+        final episodes = data.episodes;
 
-        // epId episode -> progress episode -> first episode
-        EpisodeItem? episode;
-
-        if (epId != null) {
-          if (data.episodes?.isNotEmpty == true) {
-            episode = data.episodes!.firstWhereOrNull(
-              (item) {
-                return item.epId.toString() == epId.toString();
-              },
-            );
-          }
-          if (episode == null && data.section?.isNotEmpty == true) {
-            for (Section item in data.section!) {
-              if (item.episodes?.isNotEmpty == true) {
-                for (EpisodeItem item in item.episodes!) {
-                  if (item.epId.toString() == epId.toString()) {
-                    // view as normal video
-                    toVideoPage(
-                      'bvid=${item.bvid}&cid=${item.cid}&seasonId=${data.seasonId}&epId=${item.epId}',
-                      arguments: {
-                        'pgcApi': true,
-                        'pic': item.cover,
-                        'heroTag': Utils.makeHeroTag(item.cid),
-                        'videoType': SearchType.video,
-                        if (progress != null) 'progress': int.tryParse(progress)
-                      },
-                      preventDuplicates: false,
-                    );
-                    return;
+        if (episodes != null && episodes.isNotEmpty) {
+          final EpisodeItem episode = findEpisode(
+            episodes,
+            epId: epId ?? data.userStatus?.progress?.lastEpId,
+          );
+          toVideoPage(
+            videoType: VideoType.pgc,
+            bvid: episode.bvid!,
+            cid: episode.cid!,
+            seasonId: data.seasonId,
+            epId: episode.epId,
+            pgcType: data.type,
+            cover: episode.cover,
+            progress: progress == null ? null : int.tryParse(progress),
+            extraArguments: {
+              'pgcItem': data,
+            },
+            preventDuplicates: false,
+          );
+        } else {
+          // find section
+          if (epId != null) {
+            final sections = data.section;
+            if (sections != null && sections.isNotEmpty) {
+              epId = epId.toString();
+              for (var section in sections) {
+                final episodes = section.episodes;
+                if (episodes != null && episodes.isNotEmpty) {
+                  for (var episode in episodes) {
+                    if (episode.epId.toString() == epId) {
+                      // view as ugc
+                      toVideoPage(
+                        videoType: VideoType.ugc,
+                        bvid: episode.bvid!,
+                        cid: episode.cid!,
+                        seasonId: data.seasonId,
+                        epId: episode.epId,
+                        cover: episode.cover,
+                        progress: progress == null
+                            ? null
+                            : int.tryParse(progress),
+                        extraArguments: {
+                          'pgcApi': true,
+                          'pgcItem': data,
+                        },
+                        preventDuplicates: false,
+                      );
+                      return;
+                    }
                   }
                 }
               }
             }
           }
-        }
-
-        if (data.episodes.isNullOrEmpty) {
           SmartDialog.showToast('资源加载失败');
-          return;
         }
-
-        episode ??= data.userStatus?.progress?.lastEpId != null
-            ? data.episodes!.firstWhereOrNull(
-                  (item) => item.epId == data.userStatus?.progress?.lastEpId,
-                ) ??
-                data.episodes!.first
-            : data.episodes!.first;
-        toVideoPage(
-          'bvid=${episode.bvid}&cid=${episode.cid}&seasonId=${data.seasonId}&epId=${episode.epId}&type=${data.type}',
-          arguments: {
-            'pic': episode.cover,
-            'heroTag': Utils.makeHeroTag(episode.cid),
-            'videoType': SearchType.media_bangumi,
-            'pgcItem': data,
-            if (progress != null) 'progress': int.tryParse(progress)
-          },
-          preventDuplicates: false,
-        );
       } else {
-        SmartDialog.showToast(result['msg']);
+        result.toast();
       }
     } catch (e) {
       SmartDialog.dismiss();
       SmartDialog.showToast('$e');
       if (kDebugMode) debugPrint('$e');
+    }
+  }
+
+  static Future<void> viewPugv({
+    dynamic seasonId,
+    dynamic epId,
+    int? aid,
+  }) async {
+    try {
+      SmartDialog.showLoading(msg: '资源获取中');
+      var res = await SearchHttp.pugvInfo(seasonId: seasonId, epId: epId);
+      SmartDialog.dismiss();
+      if (res.isSuccess) {
+        PgcInfoModel data = res.data;
+        final episodes = data.episodes;
+        if (episodes != null && episodes.isNotEmpty) {
+          EpisodeItem? episode;
+          if (aid != null) {
+            episode = episodes.firstWhereOrNull((e) => e.aid == aid);
+          }
+          episode ??= findEpisode(
+            episodes,
+            epId: epId ?? data.userStatus?.progress?.lastEpId,
+            isPgc: false,
+          );
+          toVideoPage(
+            videoType: VideoType.pugv,
+            aid: episode.aid!,
+            cid: episode.cid!,
+            seasonId: data.seasonId,
+            epId: episode.id,
+            cover: episode.cover,
+            extraArguments: {
+              'pgcItem': data,
+            },
+            preventDuplicates: false,
+          );
+        } else {
+          SmartDialog.showToast('资源加载失败');
+        }
+      } else {
+        res.toast();
+      }
+    } catch (e) {
+      SmartDialog.dismiss();
+      SmartDialog.showToast(e.toString());
     }
   }
 

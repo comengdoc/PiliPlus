@@ -5,7 +5,6 @@ import 'package:PiliPlus/common/widgets/text_field/controller.dart';
 import 'package:PiliPlus/http/constants.dart';
 import 'package:PiliPlus/http/live.dart';
 import 'package:PiliPlus/http/video.dart';
-import 'package:PiliPlus/models/common/account_type.dart';
 import 'package:PiliPlus/models/common/video/live_quality.dart';
 import 'package:PiliPlus/models_new/live/live_dm_info/data.dart';
 import 'package:PiliPlus/models_new/live/live_room_info_h5/data.dart';
@@ -30,44 +29,62 @@ import 'package:get/get.dart';
 class LiveRoomController extends GetxController {
   LiveRoomController(this.heroTag);
   final String heroTag;
-  late int roomId;
-  dynamic liveItem;
-  double volume = 0.0;
-  // 静音状态
-  RxBool volumeOff = false.obs;
-  PlPlayerController plPlayerController =
-      PlPlayerController.getInstance(videoType: 'live');
+
+  int roomId = Get.arguments;
+  PlPlayerController plPlayerController = PlPlayerController.getInstance(
+    isLive: true,
+  );
+
+  RxBool isLoaded = false.obs;
   Rx<RoomInfoH5Data?> roomInfoH5 = Rx<RoomInfoH5Data?>(null);
 
+  Rx<int?> liveTime = Rx<int?>(null);
+  static const periodMins = 5;
+  Timer? liveTimeTimer;
+
+  void startLiveTimer() {
+    if (liveTime.value != null) {
+      liveTimeTimer ??= Timer.periodic(
+        const Duration(minutes: periodMins),
+        (_) => liveTime.refresh(),
+      );
+    }
+  }
+
+  void cancelLiveTimer() {
+    liveTimeTimer?.cancel();
+    liveTimeTimer = null;
+  }
+
+  // dm
+  LiveDmInfoData? dmInfo;
+  List<RichTextItem>? savedDanmaku;
   RxList<dynamic> messages = [].obs;
   RxBool disableAutoScroll = false.obs;
-  double? brightness;
-  DanmakuController? controller;
-  bool showDanmaku = true;
+  LiveMessageStream? msgStream;
+  late final ScrollController scrollController = ScrollController()
+    ..addListener(listener);
 
   int? currentQn;
-  late List<({int code, String desc})> acceptQnList = [];
   RxString currentQnDesc = ''.obs;
+  final RxBool isPortrait = false.obs;
+  late List<({int code, String desc})> acceptQnList = [];
 
-  List<RichTextItem>? savedDanmaku;
-
-  AccountService accountService = Get.find<AccountService>();
   late final isLogin = accountService.isLogin.value;
-
-  LiveDmInfoData? dmInfo;
+  AccountService accountService = Get.find<AccountService>();
 
   @override
   void onInit() {
     super.onInit();
-    roomId = int.parse(Get.parameters['roomid']!);
+    queryLiveUrl();
     queryLiveInfoH5();
-    if (Accounts.get(AccountType.heartbeat).isLogin && !Pref.historyPause) {
+    if (Accounts.heartbeat.isLogin && !Pref.historyPause) {
       VideoHttp.roomEntryAction(roomId: roomId);
     }
   }
 
-  Future<void> playerInit(String source) async {
-    await plPlayerController.setDataSource(
+  Future<void> playerInit(String source) {
+    return plPlayerController.setDataSource(
       DataSource(
         videoSource: source,
         audioSource: null,
@@ -75,17 +92,15 @@ class LiveRoomController extends GetxController {
         httpHeaders: {
           'user-agent':
               'Mozilla/5.0 (Macintosh; Intel Mac OS X 13_3_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.4 Safari/605.1.15',
-          'referer': HttpString.baseUrl
+          'referer': HttpString.baseUrl,
         },
       ),
       autoplay: true,
-      direction: isPortrait.value ? 'vertical' : 'horizontal',
+      isVertical: isPortrait.value,
     );
   }
 
-  final RxBool isPortrait = false.obs;
-
-  Future<void> queryLiveInfo() async {
+  Future<void> queryLiveUrl() async {
     if (currentQn == null) {
       await Connectivity().checkConnectivity().then((res) {
         currentQn = res.contains(ConnectivityResult.wifi)
@@ -93,16 +108,22 @@ class LiveRoomController extends GetxController {
             : Pref.liveQualityCellular;
       });
     }
-    var res = await LiveHttp.liveRoomInfo(roomId: roomId, qn: currentQn);
+    var res = await LiveHttp.liveRoomInfo(
+      roomId: roomId,
+      qn: currentQn,
+      onlyAudio: plPlayerController.onlyPlayAudio.value,
+    );
     if (res['status']) {
       RoomPlayInfoData data = res['data'];
       if (data.liveStatus != 1) {
-        _dialog(title: '当前直播间未开播');
+        _showDialog('当前直播间未开播');
         return;
       }
       if (data.roomId != null) {
         roomId = data.roomId!;
       }
+      liveTime.value = data.liveTime;
+      startLiveTimer();
       isPortrait.value = data.isPortrait ?? false;
       List<CodecItem> codec =
           data.playurlInfo!.playurl!.stream!.first.format!.first.codec!;
@@ -112,39 +133,38 @@ class LiveRoomController extends GetxController {
       acceptQnList = item.acceptQn!.map((e) {
         return (
           code: e,
-          desc: LiveQuality.values
-              .firstWhere((element) => element.code == e)
-              .description,
+          desc:
+              LiveQuality.values
+                  .firstWhereOrNull((element) => element.code == e)
+                  ?.description ??
+              e.toString(),
         );
       }).toList();
-      currentQnDesc.value = LiveQuality.values
-          .firstWhere((element) => element.code == currentQn)
-          .description;
+      currentQnDesc.value =
+          LiveQuality.values
+              .firstWhereOrNull((element) => element.code == currentQn)
+              ?.description ??
+          currentQn.toString();
       String videoUrl = VideoUtils.getCdnUrl(item);
       await playerInit(videoUrl);
-      return res;
+      isLoaded.value = true;
     }
   }
 
   Future<void> queryLiveInfoH5() async {
     var res = await LiveHttp.liveRoomInfoH5(roomId: roomId);
     if (res['status']) {
-      roomInfoH5.value = res['data'];
-      videoPlayerServiceHandler.onVideoDetailChange(
-        roomInfoH5.value,
-        roomId,
-        heroTag,
-      );
+      RoomInfoH5Data data = res['data'];
+      roomInfoH5.value = data;
+      videoPlayerServiceHandler.onVideoDetailChange(data, roomId, heroTag);
     } else {
       if (res['msg'] != null) {
-        _dialog(title: res['msg']);
+        _showDialog(res['msg']);
       }
     }
   }
 
-  void _dialog({
-    required String title,
-  }) {
+  void _showDialog(String title) {
     Get.dialog(
       AlertDialog(
         title: Text(title),
@@ -167,10 +187,6 @@ class LiveRoomController extends GetxController {
     );
   }
 
-  LiveMessageStream? msgStream;
-  late final ScrollController scrollController = ScrollController()
-    ..addListener(listener);
-
   void scrollToBottom() {
     if (disableAutoScroll.value) return;
     if (scrollController.hasClients) {
@@ -188,8 +204,10 @@ class LiveRoomController extends GetxController {
         if (v['status']) {
           if ((v['data'] as List?)?.isNotEmpty == true) {
             try {
-              messages.addAll((v['data'] as List)
-                  .map((obj) => {
+              messages.addAll(
+                (v['data'] as List)
+                    .map(
+                      (obj) => {
                         'name': obj['user']['base']['name'],
                         'uid': obj['user']['uid'],
                         'text': obj['text'],
@@ -197,8 +215,10 @@ class LiveRoomController extends GetxController {
                         'uemote': obj['emoticon']['emoticon_unique'] != ""
                             ? obj['emoticon']
                             : null,
-                      })
-                  .toList());
+                      },
+                    )
+                    .toList(),
+              );
               WidgetsBinding.instance.addPostFrameCallback(
                 (_) => scrollToBottom(),
               );
@@ -237,6 +257,7 @@ class LiveRoomController extends GetxController {
 
   @override
   void onClose() {
+    cancelLiveTimer();
     savedDanmaku?.clear();
     savedDanmaku = null;
     scrollController
@@ -251,56 +272,61 @@ class LiveRoomController extends GetxController {
       return null;
     }
     currentQn = qn;
-    currentQnDesc.value = LiveQuality.values
-        .firstWhere((element) => element.code == currentQn)
-        .description;
-    return queryLiveInfo();
+    currentQnDesc.value =
+        LiveQuality.values
+            .firstWhereOrNull((element) => element.code == currentQn)
+            ?.description ??
+        currentQn.toString();
+    return queryLiveUrl();
   }
 
   void initDm(LiveDmInfoData info) {
     if (info.hostList.isNullOrEmpty) {
       return;
     }
-    msgStream = LiveMessageStream(
-      streamToken: info.token!,
-      roomId: roomId,
-      uid: Accounts.main.mid,
-      servers: info.hostList!
-          .map((host) => 'wss://${host.host}:${host.wssPort}/sub')
-          .toList(),
-    )
-      ..addEventListener((obj) {
-        try {
-          if (obj['cmd'] == 'DANMU_MSG') {
-            // logger.i(' 原始弹幕消息 ======> ${jsonEncode(obj)}');
-            final info = obj['info'];
-            final first = info[0];
-            final content = first[15];
-            final extra = jsonDecode(content['extra']);
-            final user = content['user'];
-            final uid = user['uid'];
-            messages.add({
-              'name': user['base']['name'],
-              'uid': uid,
-              'text': info[1],
-              'emots': extra['emots'],
-              'uemote': first[13],
-            });
-            if (showDanmaku) {
-              controller?.addDanmaku(
-                DanmakuContentItem(
-                  extra['content'],
-                  color: DmUtils.decimalToColor(extra['color']),
-                  type: DmUtils.getPosition(extra['mode']),
-                  selfSend: isLogin && uid == accountService.mid,
-                ),
-              );
-              WidgetsBinding.instance
-                  .addPostFrameCallback((_) => scrollToBottom());
-            }
-          }
-        } catch (_) {}
-      })
-      ..init();
+    msgStream =
+        LiveMessageStream(
+            streamToken: info.token!,
+            roomId: roomId,
+            uid: Accounts.main.mid,
+            servers: info.hostList!
+                .map((host) => 'wss://${host.host}:${host.wssPort}/sub')
+                .toList(),
+          )
+          ..addEventListener((obj) {
+            try {
+              if (obj['cmd'] == 'DANMU_MSG') {
+                // logger.i(' 原始弹幕消息 ======> ${jsonEncode(obj)}');
+                final info = obj['info'];
+                final first = info[0];
+                final content = first[15];
+                final extra = jsonDecode(content['extra']);
+                final user = content['user'];
+                final uid = user['uid'];
+                messages.add({
+                  'name': user['base']['name'],
+                  'uid': uid,
+                  'text': info[1],
+                  'emots': extra['emots'],
+                  'uemote': first[13],
+                });
+
+                if (plPlayerController.showDanmaku) {
+                  plPlayerController.danmakuController?.addDanmaku(
+                    DanmakuContentItem(
+                      extra['content'],
+                      color: DmUtils.decimalToColor(extra['color']),
+                      type: DmUtils.getPosition(extra['mode']),
+                      selfSend: isLogin && uid == accountService.mid,
+                    ),
+                  );
+                  WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => scrollToBottom(),
+                  );
+                }
+              }
+            } catch (_) {}
+          })
+          ..init();
   }
 }

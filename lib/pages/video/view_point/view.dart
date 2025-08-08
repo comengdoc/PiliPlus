@@ -2,7 +2,7 @@ import 'package:PiliPlus/common/constants.dart';
 import 'package:PiliPlus/common/widgets/button/icon_button.dart';
 import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
 import 'package:PiliPlus/common/widgets/progress_bar/segment_progress_bar.dart';
-import 'package:PiliPlus/pages/common/common_collapse_slide_page.dart';
+import 'package:PiliPlus/pages/common/slide/common_collapse_slide_page.dart';
 import 'package:PiliPlus/pages/video/controller.dart';
 import 'package:PiliPlus/plugin/pl_player/controller.dart';
 import 'package:PiliPlus/utils/duration_util.dart';
@@ -31,6 +31,14 @@ class _ViewPointsPageState
   PlPlayerController? get plPlayerController => widget.plPlayerController;
 
   int currentIndex = -1;
+
+  final _controller = ScrollController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget buildPage(ThemeData theme) {
@@ -92,18 +100,19 @@ class _ViewPointsPageState
       color: theme.dividerColor.withValues(alpha: 0.1),
     );
     return ListView.separated(
-      controller: ScrollController(),
+      controller: _controller,
       physics: const AlwaysScrollableScrollPhysics(),
-      padding:
-          EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom + 80),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.paddingOf(context).bottom + 80,
+      ),
       itemCount: videoDetailController.viewPointList.length,
       itemBuilder: (context, index) {
         Segment segment = videoDetailController.viewPointList[index];
         if (currentIndex == -1 && segment.from != null && segment.to != null) {
-          if (videoDetailController.plPlayerController.positionSeconds.value >=
-                  segment.from! &&
-              videoDetailController.plPlayerController.positionSeconds.value <
-                  segment.to!) {
+          final positionSeconds =
+              videoDetailController.plPlayerController.positionSeconds.value;
+          if (positionSeconds >= segment.from! &&
+              positionSeconds < segment.to!) {
             currentIndex = index;
           }
         }
@@ -113,8 +122,9 @@ class _ViewPointsPageState
               ? () {
                   currentIndex = index;
                   plPlayerController?.danmakuController?.clear();
-                  plPlayerController?.videoPlayerController
-                      ?.seek(Duration(seconds: segment.from!));
+                  plPlayerController?.videoPlayerController?.seek(
+                    Duration(seconds: segment.from!),
+                  );
                   Get.back();
                 }
               : null,
@@ -123,8 +133,9 @@ class _ViewPointsPageState
                   margin: const EdgeInsets.symmetric(vertical: 6),
                   decoration: currentIndex == index
                       ? BoxDecoration(
-                          borderRadius:
-                              const BorderRadius.all(Radius.circular(6)),
+                          borderRadius: const BorderRadius.all(
+                            Radius.circular(6),
+                          ),
                           border: Border.all(
                             width: 1.8,
                             strokeAlign: BorderSide.strokeAlignOutside,

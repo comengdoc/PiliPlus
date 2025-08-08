@@ -15,6 +15,16 @@ class Utils {
 
   static const channel = MethodChannel("PiliPlus");
 
+  static int? _sdkInt;
+
+  static Future<int> get sdkInt async {
+    if (_sdkInt != null) {
+      return _sdkInt!;
+    }
+    _sdkInt = (await DeviceInfoPlugin().androidInfo).version.sdkInt;
+    return _sdkInt!;
+  }
+
   static bool? _isIpad;
 
   static Future<bool> isIpad() async {
@@ -30,15 +40,26 @@ class Utils {
     return _isIpad!;
   }
 
+  static Future<Rect?> get sharePositionOrigin async {
+    if (await Utils.isIpad()) {
+      final size = Get.size;
+      return Rect.fromLTWH(
+        0,
+        0,
+        size.width,
+        size.height / 2,
+      );
+    }
+    return null;
+  }
+
   static Future<void> shareText(String text) async {
     try {
-      Rect? sharePositionOrigin;
-      if (await isIpad()) {
-        sharePositionOrigin = Rect.fromLTWH(0, 0, Get.width, Get.height / 2);
-      }
-      Share.share(
-        text,
-        sharePositionOrigin: sharePositionOrigin,
+      SharePlus.instance.share(
+        ShareParams(
+          text: text,
+          sharePositionOrigin: await sharePositionOrigin,
+        ),
       );
     } catch (e) {
       SmartDialog.showToast(e.toString());
@@ -46,7 +67,9 @@ class Utils {
   }
 
   static String buildShadersAbsolutePath(
-      String baseDirectory, List<String> shaders) {
+    String baseDirectory,
+    List<String> shaders,
+  ) {
     List<String> absolutePaths = shaders.map((shader) {
       return path.join(baseDirectory, shader);
     }).toList();
@@ -61,8 +84,12 @@ class Utils {
   static String generateRandomString(int length) {
     const characters = '0123456789abcdefghijklmnopqrstuvwxyz';
 
-    return String.fromCharCodes(Iterable.generate(length,
-        (_) => characters.codeUnitAt(random.nextInt(characters.length))));
+    return String.fromCharCodes(
+      Iterable.generate(
+        length,
+        (_) => characters.codeUnitAt(random.nextInt(characters.length)),
+      ),
+    );
   }
 
   static void copyText(

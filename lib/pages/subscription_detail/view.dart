@@ -28,6 +28,7 @@ class _SubDetailPageState extends State<SubDetailPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final padding = MediaQuery.paddingOf(context);
     return Scaffold(
       body: SafeArea(
         top: false,
@@ -38,14 +39,15 @@ class _SubDetailPageState extends State<SubDetailPage> {
             controller: _subDetailController.scrollController,
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              _buildAppBar(theme),
+              _buildAppBar(theme, padding),
               SliverPadding(
                 padding: EdgeInsets.only(
                   top: 7,
-                  bottom: MediaQuery.paddingOf(context).bottom + 80,
+                  bottom: padding.bottom + 80,
                 ),
                 sliver: Obx(
-                    () => _buildBody(_subDetailController.loadingState.value)),
+                  () => _buildBody(_subDetailController.loadingState.value),
+                ),
               ),
             ],
           ),
@@ -57,38 +59,39 @@ class _SubDetailPageState extends State<SubDetailPage> {
   Widget _buildBody(LoadingState<List<SubDetailItemModel>?> loadingState) {
     return switch (loadingState) {
       Loading() => SliverGrid(
-          gridDelegate: Grid.videoCardHDelegate(context),
-          delegate: SliverChildBuilderDelegate(
-            (context, index) => const VideoCardHSkeleton(),
-            childCount: 10,
-          ),
+        gridDelegate: Grid.videoCardHDelegate(context),
+        delegate: SliverChildBuilderDelegate(
+          (context, index) => const VideoCardHSkeleton(),
+          childCount: 10,
         ),
-      Success(:var response) => response?.isNotEmpty == true
-          ? SliverGrid(
-              gridDelegate: Grid.videoCardHDelegate(context),
-              delegate: SliverChildBuilderDelegate(
-                childCount: response!.length,
-                (context, index) {
-                  if (index == response.length - 1) {
-                    _subDetailController.onLoadMore();
-                  }
-                  return SubVideoCardH(
-                    videoItem: response[index],
-                  );
-                },
+      ),
+      Success(:var response) =>
+        response?.isNotEmpty == true
+            ? SliverGrid(
+                gridDelegate: Grid.videoCardHDelegate(context),
+                delegate: SliverChildBuilderDelegate(
+                  childCount: response!.length,
+                  (context, index) {
+                    if (index == response.length - 1) {
+                      _subDetailController.onLoadMore();
+                    }
+                    return SubVideoCardH(
+                      videoItem: response[index],
+                    );
+                  },
+                ),
+              )
+            : HttpError(
+                onReload: _subDetailController.onReload,
               ),
-            )
-          : HttpError(
-              onReload: _subDetailController.onReload,
-            ),
       Error(:var errMsg) => HttpError(
-          errMsg: errMsg,
-          onReload: _subDetailController.onReload,
-        ),
+        errMsg: errMsg,
+        onReload: _subDetailController.onReload,
+      ),
     };
   }
 
-  Widget _buildAppBar(ThemeData theme) {
+  Widget _buildAppBar(ThemeData theme, EdgeInsets padding) {
     final style = TextStyle(
       fontSize: 12.5,
       color: theme.colorScheme.outline,
@@ -123,7 +126,7 @@ class _SubDetailPageState extends State<SubDetailPage> {
             ),
           ),
           padding: EdgeInsets.only(
-            top: kToolbarHeight + MediaQuery.paddingOf(context).top + 10,
+            top: kToolbarHeight + padding.top + 10,
             left: 12,
             right: 12,
             bottom: 12,
@@ -155,7 +158,8 @@ class _SubDetailPageState extends State<SubDetailPage> {
                     GestureDetector(
                       onTap: () {
                         Get.toNamed(
-                            '/member?mid=${_subDetailController.subInfo.upper!.mid}');
+                          '/member?mid=${_subDetailController.subInfo.upper!.mid}',
+                        );
                       },
                       child: Text(
                         _subDetailController.subInfo.upper!.name!,
@@ -164,12 +168,16 @@ class _SubDetailPageState extends State<SubDetailPage> {
                     ),
                     const Spacer(),
                     Obx(
-                      () => _subDetailController.mediaCount.value == 0
-                          ? const SizedBox.shrink()
-                          : Text(
-                              '共${_subDetailController.mediaCount.value}条视频',
-                              style: style,
-                            ),
+                      () {
+                        final mediaCount =
+                            _subDetailController.mediaCount.value;
+                        return mediaCount == 0
+                            ? const SizedBox.shrink()
+                            : Text(
+                                '共$mediaCount条视频',
+                                style: style,
+                              );
+                      },
                     ),
                     Obx(
                       () => Text(
