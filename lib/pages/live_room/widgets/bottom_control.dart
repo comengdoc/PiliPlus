@@ -35,10 +35,7 @@ class BottomControl extends StatelessWidget {
       titleSpacing: 14,
       title: Row(
         children: [
-          PlayOrPauseButton(
-            plPlayerController: plPlayerController,
-          ),
-          const SizedBox(width: 10),
+          PlayOrPauseButton(plPlayerController: plPlayerController),
           ComBtn(
             icon: const Icon(
               Icons.refresh,
@@ -57,7 +54,7 @@ class BottomControl extends StatelessWidget {
                 padding: WidgetStateProperty.all(EdgeInsets.zero),
               ),
               onPressed: () {
-                if (liveRoomCtr.accountService.isLogin.value) {
+                if (liveRoomCtr.isLogin) {
                   Get.toNamed(
                     '/liveDmBlockPage',
                     parameters: {
@@ -91,10 +88,12 @@ class BottomControl extends StatelessWidget {
                   onPressed: () {
                     final newVal = !enableShowDanmaku;
                     plPlayerController.enableShowDanmaku.value = newVal;
-                    GStorage.setting.put(
-                      SettingBoxKey.enableShowDanmaku,
-                      newVal,
-                    );
+                    if (!plPlayerController.tempPlayerConf) {
+                      GStorage.setting.put(
+                        SettingBoxKey.enableShowDanmaku,
+                        newVal,
+                      );
+                    }
                   },
                   icon: Icon(
                     size: 18,

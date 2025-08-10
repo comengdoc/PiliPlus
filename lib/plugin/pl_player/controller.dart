@@ -336,6 +336,8 @@ class PlPlayerController {
   late final bool pipNoDanmaku = Pref.pipNoDanmaku;
   late final bool removeSafeArea = Pref.removeSafeArea;
 
+  late final bool tempPlayerConf = Pref.tempPlayerConf;
+
   int? cacheVideoQa;
   late int cacheAudioQa;
   bool enableHeart = true;
@@ -656,7 +658,7 @@ class PlPlayerController {
       type ??= superResolutionType;
     } else {
       superResolutionType = type;
-      if (isAnim) {
+      if (isAnim && !tempPlayerConf) {
         GStorage.setting.put(SettingBoxKey.superResolutionType, type);
       }
     }
@@ -807,22 +809,24 @@ class PlPlayerController {
 
   Future<bool> refreshPlayer() async {
     if (_videoPlayerController == null) {
-      SmartDialog.showToast('视频播放器为空，请重新进入本页面');
+      // SmartDialog.showToast('视频播放器为空，请重新进入本页面');
       return false;
     }
     if (dataSource.videoSource.isNullOrEmpty) {
       SmartDialog.showToast('视频源为空，请重新进入本页面');
       return false;
     }
-    if (dataSource.audioSource.isNullOrEmpty) {
-      SmartDialog.showToast('音频源为空');
-    } else {
-      await (_videoPlayerController!.platform as NativePlayer).setProperty(
-        'audio-files',
-        UniversalPlatform.isWindows
-            ? dataSource.audioSource!.replaceAll(';', '\\;')
-            : dataSource.audioSource!.replaceAll(':', '\\:'),
-      );
+    if (!isLive) {
+      if (dataSource.audioSource.isNullOrEmpty) {
+        SmartDialog.showToast('音频源为空');
+      } else {
+        await (_videoPlayerController!.platform as NativePlayer).setProperty(
+          'audio-files',
+          UniversalPlatform.isWindows
+              ? dataSource.audioSource!.replaceAll(';', '\\;')
+              : dataSource.audioSource!.replaceAll(':', '\\:'),
+        );
+      }
     }
     await _videoPlayerController!.open(
       Media(
@@ -952,8 +956,14 @@ class PlPlayerController {
         );
       }),
       videoPlayerController!.stream.error.listen((String event) {
-        // 直播的错误提示没有参考价值，均不予显示
-        if (isLive) return;
+        if (isLive) {
+          if (event.startsWith('tcp: ffurl_read returned ') ||
+              event.startsWith("Failed to open https://") ||
+              event.startsWith("Can not open external file https://")) {
+            Future.delayed(const Duration(milliseconds: 3000), refreshPlayer);
+          }
+          return;
+        }
         if (event.startsWith("Failed to open https://") ||
             event.startsWith("Can not open external file https://") ||
             //tcp: ffurl_read returned 0xdfb9b0bb
@@ -1152,7 +1162,7 @@ class PlPlayerController {
     }
   }
 
-  bool? isTriple;
+  bool tripling = false;
 
   /// 隐藏控制条
   void hideTaskControls() {
@@ -1161,7 +1171,7 @@ class PlPlayerController {
     }
     Duration waitingTime = Duration(seconds: enableLongShowControl ? 30 : 3);
     _timer = Timer(waitingTime, () {
-      if (!isSliderMoving.value && isTriple != true) {
+      if (!isSliderMoving.value && !tripling) {
         controls = false;
       }
       _timer = null;
@@ -1306,7 +1316,9 @@ class PlPlayerController {
   /// 设置后台播放
   Future<void> setBackgroundPlay(bool val) async {
     videoPlayerServiceHandler.enableBackgroundPlay = val;
-    setting.put(SettingBoxKey.enableBackgroundPlay, val);
+    if (!tempPlayerConf) {
+      setting.put(SettingBoxKey.enableBackgroundPlay, val);
+    }
   }
 
   set controls(bool visible) {
@@ -1451,15 +1463,15 @@ class PlPlayerController {
     dynamic pgcType,
     VideoType? videoType,
   }) async {
+    if (isLive) {
+      return;
+    }
     if (!enableHeart || MineController.anonymity.value || progress == 0) {
       return;
     } else if (playerStatus.status.value == PlayerStatus.paused) {
       if (!isManual) {
         return;
       }
-    }
-    if (isLive) {
-      return;
     }
     bool isComplete =
         playerStatus.status.value == PlayerStatus.completed ||
@@ -1586,10 +1598,12 @@ class PlPlayerController {
 
   void setContinuePlayInBackground() {
     _continuePlayInBackground.value = !_continuePlayInBackground.value;
-    setting.put(
-      SettingBoxKey.continuePlayInBackground,
-      _continuePlayInBackground.value,
-    );
+    if (!tempPlayerConf) {
+      setting.put(
+        SettingBoxKey.continuePlayInBackground,
+        _continuePlayInBackground.value,
+      );
+    }
   }
 
   void setOnlyPlayAudio() {
